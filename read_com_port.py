@@ -79,7 +79,10 @@ if len(sys.argv) != 2:
 port_name = sys.argv[1]
 log_file = open('%s_hist.txt' % port_name , 'a', 1)
 
-comport_loop(log_file, port_name)
-
+while 1:
+    try:
+        comport_loop(log_file, port_name)
+    except Exception as exception :  
+        log(log_file, 'caught exception ' + str(exception))
 
     
