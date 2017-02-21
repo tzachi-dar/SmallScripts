@@ -3,6 +3,7 @@ import time
 import datetime
 import time
 import sys
+import socket
 
 db_uri = 'mongodb://user:password@ds041673.mlab.com:41673'
 db_name = 'nightscout'
@@ -23,7 +24,7 @@ def create_object(port_name, wixel_data):
     mongo['UploaderBatteryLife'] = 100
     captured_time = int(time.time() * 1000)
     mongo['CaptureDateTime'] = captured_time
-    mongo['DebugInfo'] = 'pc %s %s' % (time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(captured_time / 1000)), port_name)
+    mongo['DebugInfo'] = '%s %s %s' % (socket.gethostname(), time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(captured_time / 1000)), port_name)
 
     return mongo
 
@@ -31,7 +32,7 @@ def write_log_to_mongo(log_file, port_name, log_message):
     mongo = dict()
     captured_time = int(time.time() * 1000)
     mongo['CaptureDateTime'] = captured_time
-    mongo['DebugMessage'] = 'pc %s %s %s' % (time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(captured_time / 1000)) , port_name, log_message)
+    mongo['DebugMessage'] = '%s %s %s %s' % (socket.gethostname(), time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(captured_time / 1000)) , port_name, log_message)
     write_object(log_file, mongo)
     log(log_file, "sent %s to mongo" % log_message)
    
@@ -60,10 +61,14 @@ def log(file, string):
 def comport_loop(log_file, port_name):
     write_log_to_mongo(log_file, port_name, "starting loop")
     try:
-        ser = serial.Serial(port_name, 9600, timeout=0)
+        if port_name.startswith( 'tty' ):
+            real_port_name = '/dev/' + port_name
+        else:
+            real_port_name = port_name
+        ser = serial.Serial(real_port_name, 9600, timeout=0)
     except serial.serialutil.SerialException as exception:
         log(log_file, 'caught exception ' + str(exception) + " " + exception.__class__.__name__ + " exiting :-(")
-        sys.exit(1)
+        return
     log_file.write('Starting loop\r\n')
     while 1:
         
