@@ -109,6 +109,6 @@ while 1:
         sys.exit(0)
     except Exception as exception :  
         log(log_file, 'caught exception in while loop' + str(exception) + exception.__class__.__name__)
-        time.sleep(1)
+        time.sleep(60)
 
     
