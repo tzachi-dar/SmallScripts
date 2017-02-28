@@ -67,7 +67,7 @@ def comport_loop(log_file, port_name):
             real_port_name = port_name
         ser = serial.Serial(real_port_name, 9600, timeout=0)
     except serial.serialutil.SerialException as exception:
-        log(log_file, 'caught exception ' + str(exception) + " " + exception.__class__.__name__ + " exiting :-(")
+        log(log_file, 'caught serial exception ' + str(exception) + " " + exception.__class__.__name__ + " exiting :-(")
         return
     log_file.write('Starting loop\r\n')
     while 1:
@@ -89,7 +89,7 @@ def comport_loop(log_file, port_name):
                 try:
                     write_data_to_mongo(log_file, port_name, line)
                 except ValueError as value_error:
-                    log(log_file, 'caught exception ' + str(value_error))
+                    log(log_file, 'caught ValueError exception ' + str(value_error))
 
 
 if len(sys.argv) != 2:
@@ -108,7 +108,7 @@ while 1:
         log(log_file, 'caught exception KeyboardInterrupt:' + str(keyboardInterrupt))
         sys.exit(0)
     except Exception as exception :  
-        log(log_file, 'caught exception ' + str(exception) + exception.__class__.__name__)
+        log(log_file, 'caught exception in while loop' + str(exception) + exception.__class__.__name__)
         time.sleep(1)
 
     
