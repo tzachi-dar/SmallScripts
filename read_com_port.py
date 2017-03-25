@@ -4,12 +4,11 @@ import datetime
 import time
 import sys
 import socket
+from pymongo import MongoClient
 
 db_uri = 'mongodb://user:password@ds041673.mlab.com:41673'
 db_name = 'nightscout'
 transmitter_id = '6FNTM'
-
-from pymongo import MongoClient
 
 def create_object(port_name, wixel_data):
     # an example to wixel_data is '6ABW4 54880 44800 213 -89 2'
@@ -99,7 +98,13 @@ if len(sys.argv) != 2:
 port_name = sys.argv[1]
 log_file = open('%s_hist.txt' % port_name , 'a', 1)
 
-write_log_to_mongo(log_file, port_name, "starting program")
+# sleep for 30 seconds to let the system connect to the network
+time.sleep(30)
+
+try:
+    write_log_to_mongo(log_file, port_name, "starting program")
+except Exception as exception :  
+    log(log_file, 'caught exception in first write' + str(exception) + exception.__class__.__name__)
 
 while 1:
     try:
