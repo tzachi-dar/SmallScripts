@@ -8,6 +8,7 @@ from pymongo import MongoClient
 import sqlite3
 import os
 import inspect
+import threading
 
 db_uri = 'mongodb://user:password@ds041673.mlab.com:41673'
 db_name = 'nightscout'
@@ -109,17 +110,18 @@ class sqllite3_wrapper:
         sys.exit(0)
 
 
-sqw = sqllite3_wrapper ()
-sqw.RunLocalTests()
 
 ''' ------------------------ end of sqllite3 functions ---------------------------'''
 
 
 def create_object(port_name, wixel_data):
-    # an example to wixel_data is '6ABW4 54880 44800 213 -89 2'
+    # an example to wixel_data is '6FNTM 54880 44800 213 -89 2'
     mongo = dict()
     data = wixel_data.split()
     mongo['TransmitterId'] = data[0]
+    if mongo['TransmitterId'] != transmitter_id:
+        log(log_file, "rejecting packet with transmision id %s" % mongo['TransmitterId'])
+        return None
     mongo['RawValue'] = int(data[1])
     mongo['FilteredValue'] = int(data[2])
     mongo['BatteryLife'] = int(data[3])
@@ -138,22 +140,17 @@ def write_log_to_mongo(log_file, port_name, log_message):
     captured_time = int(time.time() * 1000)
     mongo['CaptureDateTime'] = captured_time
     mongo['DebugMessage'] = '%s %s %s %s' % (socket.gethostname(), time.strftime('%d-%m-%Y %H:%M:%S', time.localtime(captured_time / 1000)) , port_name, log_message)
-    write_object(log_file, mongo)
+    write_object_to_mongo(log_file, mongo)
     log(log_file, "sent %s to mongo" % log_message)
    
-def write_data_to_mongo(log_file, port_name, wixel_data):
-    mongo = create_object(port_name, wixel_data)
-    if mongo['TransmitterId'] != transmitter_id:
-        log(log_file, "rejecting packet with transmision id %s" % mongo['TransmitterId'])
-        return
-    write_object(log_file, mongo)
 
-def write_object(log_file, mongo_dict):
+
+def write_object_to_mongo(log_file, mongo_dict):
     client = MongoClient(db_uri+ '/'+db_name + '?socketTimeoutMS=180000&connectTimeoutMS=60000')
     db = client[db_name]
     collection = db['SnirData']
-    post_id = collection.insert_one(mongo_dict).inserted_id
-    log(log_file, "succesfully uploaded object to mongo")
+    insertion_result = collection.insert_one(mongo_dict)
+    log(log_file, "succesfully uploaded object to mongo insertion_result = %s" % insertion_result.acknowledged)
 
 def log(file, string):
     i = datetime.datetime.now()
@@ -163,7 +160,7 @@ def log(file, string):
     file.write('\r\n')
 
 
-def comport_loop(log_file, port_name):
+def comport_loop(log_file, port_name, mongo_wrapper):
     write_log_to_mongo(log_file, port_name, "starting loop")
     try:
         if port_name.startswith( 'tty' ):
@@ -183,18 +180,56 @@ def comport_loop(log_file, port_name):
                 continue
             print(bytes)
             data = bytes.decode("ASCII")
+            # In order to create fake data, uncomment the next two lines, and add a comment to continue above
+            #data = '6FNTM 54880 44800 213 -89 2'
+            #time.sleep(10)
 
-            #if not data:
-            #  time.sleep(50.0/1000.0)
-            #  continue
         
             lines =data.splitlines()
             for line in lines:
                 log(log_file, line)
                 try:
-                    write_data_to_mongo(log_file, port_name, line)
+                    mongo_dict = create_object(port_name, line)
+                    if mongo_dict is None:
+                        continue
+                    sqw = sqllite3_wrapper()
+                    sqw.InsertReading(mongo_dict)
+                    mongo_wrapper.SetEvent()
                 except ValueError as value_error:
                     log(log_file, 'caught ValueError exception ' + str(value_error))
+
+
+
+class MongoWrapper(threading.Thread):
+
+    event = None
+    log_file = None
+    
+
+    def __init__(self, log_file):
+        self.event = threading.Event()
+        self.log_file =log_file
+        threading.Thread.__init__(self)
+
+    def SetEvent(self):
+        self.event.set()
+
+    def run(self):
+        #This threads loop and reads data from the sql, and uploads it to the mongo DB.
+        #It starts to work based on the event or based on 5 minutes timeout.
+        log(log_file, "Starting mongo thread")
+        while True:
+            try:
+                ret = self.event.wait(6*60)
+                log(log_file, "event wait ended, ret = %s" % ret)
+                sqw = sqllite3_wrapper ()
+                not_uploaded_readings = sqw.GetLatestNotUploadedObjects(12 * 8)
+                for reading_dict in not_uploaded_readings:
+                    write_object_to_mongo(log_file, reading_dict)
+                    sqw.UpdateUploaded(reading_dict['CaptureDateTime'], reading_dict['DebugInfo'])
+            except Exception as exception :  
+               log(log_file, 'caught exception in MongoThread, will soon continue' + str(exception) + exception.__class__.__name__)
+               time.sleep(60)
 
 
 if len(sys.argv) != 2:
@@ -210,11 +245,22 @@ time.sleep(30)
 try:
     write_log_to_mongo(log_file, port_name, "starting program")
 except Exception as exception :  
-    log(log_file, 'caught exception in first write' + str(exception) + exception.__class__.__name__)
+    log(log_file, 'caught exception in first write ' + str(exception) + exception.__class__.__name__)
+
+try:
+    mongo_wrapper = MongoWrapper(log_file)
+    mongo_wrapper.start()
+except Exception as exception :  
+    # This is a critical failure, we will continue going up, but in a very bad state. Consider quiting the program
+    log(log_file, 'WTF, caught exception in MongoWrapper cration ' + str(exception) + exception.__class__.__name__)
+    
+
+
+
 
 while 1:
     try:
-        comport_loop(log_file, port_name)
+        comport_loop(log_file, port_name, mongo_wrapper)
     except KeyboardInterrupt as keyboardInterrupt :
         log(log_file, 'caught exception KeyboardInterrupt:' + str(keyboardInterrupt))
         sys.exit(0)
