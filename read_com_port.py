@@ -6,7 +6,8 @@ import sys
 import socket
 from pymongo import MongoClient
 import sqlite3
-
+import os
+import inspect
 
 db_uri = 'mongodb://user:password@ds041673.mlab.com:41673'
 db_name = 'nightscout'
@@ -17,9 +18,11 @@ transmitter_id = '6FNTM'
 
 class sqllite3_wrapper:
 
-    file_name = 'example.db'
+    path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+    file_name = path+os.sep+'example.db'
 
     def CreateTable(self):
+        print(self.file_name)
         conn = sqlite3.connect(self.file_name)
         cursor=conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS G4Readings (
@@ -94,16 +97,20 @@ class sqllite3_wrapper:
     def RunLocalTests(self):
         sqw = sqllite3_wrapper ()
         sqw.CreateTable()
-         for i in range(1, 10000):
-         if not i % 1000: print(i)
-         obj = create_object('port1', '6ABW4 54880 44800 213 -89 2')
-         sqw.InsertReading(obj)
+        for i in range(1, 100000):
+            if not i % 1000: print(i)
+            obj = create_object('port1', '6ABW4 54880 44800 213 -89 2')
+            #sqw.InsertReading(obj)
 
-         print("before get")
-         lastones = sqw.GetLatestNotUploadedObjects(5)
-         for ob in lastones:
-             sqw.UpdateUploaded(ob['CaptureDateTime'], ob['DebugInfo'])
-         sys.exit(0)
+        print("before get")
+        lastones = sqw.GetLatestNotUploadedObjects(5)
+        for ob in lastones:
+            sqw.UpdateUploaded(ob['CaptureDateTime'], ob['DebugInfo'])
+        sys.exit(0)
+
+
+sqw = sqllite3_wrapper ()
+sqw.RunLocalTests()
 
 ''' ------------------------ end of sqllite3 functions ---------------------------'''
 
