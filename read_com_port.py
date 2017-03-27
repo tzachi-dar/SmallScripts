@@ -151,21 +151,22 @@ def clientThread(connlocal):
             if not data:
                 break
             decoded = json.loads(data)
-                        print("type decpded = %s" % type (decoded))
+            print("type decpded = %s" % type (decoded))
             print json.dumps(decoded, sort_keys=True, indent=4)
-                        if decoded['version'] != 1:
-                            print("bad version %s" % decoded['version'] )
+            if decoded['version'] != 1:
+                print("bad version %s" % decoded['version'] )
+                return
 
-                        sqw = sqllite3_wrapper()
-                        not_uploaded_readings = sqw.GetLatestObjects( decoded['numberOfRecords'],False)
-                        for reading_dict in not_uploaded_readings:
-                           reading_dict['RelativeTime'] = (int(time.time()*1000) ) - reading_dict['CaptureDateTime']
-                           if reading_dict['RelativeTime'] < 0:
-                               continue
-                           reply = reply + json.dumps(reading_dict) +"\n"
+            sqw = sqllite3_wrapper()
+            not_uploaded_readings = sqw.GetLatestObjects( decoded['numberOfRecords'],False)
+            for reading_dict in not_uploaded_readings:
+                reading_dict['RelativeTime'] = (int(time.time()*1000) ) - reading_dict['CaptureDateTime']
+                if reading_dict['RelativeTime'] < 0:
+                    continue
+                reply = reply + json.dumps(reading_dict) +"\n"
 
             print ("reply = %s" % reply)
-                        reply = reply + "\n"
+            reply = reply + "\n"
 
             connlocal.sendall(reply)
         connlocal.close()
@@ -348,7 +349,7 @@ while 1:
         comport_loop(log_file, port_name, mongo_wrapper)
     except KeyboardInterrupt as keyboardInterrupt :
         log(log_file, 'caught exception KeyboardInterrupt:' + str(keyboardInterrupt))
-    os.kill(os.getpid(), signal.SIGKILL)
+        os.kill(os.getpid(), signal.SIGKILL)
         sys.exit(0)
     except Exception as exception :  
         log(log_file, 'caught exception in while loop' + str(exception) + exception.__class__.__name__)
