@@ -216,12 +216,14 @@ class MongoWrapper(threading.Thread):
 
     def run(self):
         #This threads loop and reads data from the sql, and uploads it to the mongo DB.
-        #It starts to work based on the event or based on 5 minutes timeout.
+        #It starts to work based on the event or based on 1 minutes timeout.
         log(log_file, "Starting mongo thread")
         while True:
             try:
-                ret = self.event.wait(6*60)
+                ret = self.event.wait(1*60)
                 log(log_file, "event wait ended, ret = %s" % ret)
+                # The next line introduces many races that are only fixed by the timeout on wait.
+                self.event.clear()
                 sqw = sqllite3_wrapper ()
                 not_uploaded_readings = sqw.GetLatestNotUploadedObjects(12 * 8)
                 for reading_dict in not_uploaded_readings:
@@ -254,7 +256,9 @@ except Exception as exception :
     # This is a critical failure, we will continue going up, but in a very bad state. Consider quiting the program
     log(log_file, 'WTF, caught exception in MongoWrapper cration ' + str(exception) + exception.__class__.__name__)
     
-
+#Create the sqllite table.
+sqw = sqllite3_wrapper ()
+sqw.CreateTable()
 
 
 
