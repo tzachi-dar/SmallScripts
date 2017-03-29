@@ -108,11 +108,10 @@ class sqllite3_wrapper:
                 raw_dict['CaptureDateTime'] = raw[7]
                 raw_dict['DebugInfo'] = raw[8]
                 raw_dict['Uploaded'] = raw[9]
+                # reverse the list to get is ASC but from the end.
                 ret.insert(0,raw_dict)
-                print(raw)
         for raw in ret:
             print(raw)
-            print (type (raw))
         return ret
     
     def UpdateUploaded(self, CaptureDateTime, DebugInfo):
@@ -158,8 +157,8 @@ def clientThread(connlocal):
                 return
 
             sqw = sqllite3_wrapper()
-            not_uploaded_readings = sqw.GetLatestObjects( decoded['numberOfRecords'],False)
-            for reading_dict in not_uploaded_readings:
+            readings = sqw.GetLatestObjects( decoded['numberOfRecords'],False)
+            for reading_dict in reversed(readings):
                 reading_dict['RelativeTime'] = (int(time.time()*1000) ) - reading_dict['CaptureDateTime']
                 if reading_dict['RelativeTime'] < 0:
                     continue
