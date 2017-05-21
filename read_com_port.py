@@ -243,6 +243,7 @@ def comport_loop(log_file, port_name, mongo_wrapper):
         ser = serial.Serial(real_port_name, 9600, timeout=0)
     except serial.serialutil.SerialException as exception:
         log(log_file, 'caught serial exception ' + str(exception) + " " + exception.__class__.__name__ + " exiting :-(")
+        time.sleep(60)
         return
     log_file.write('Starting loop\r\n')
     while 1:
