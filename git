@@ -1,0 +1,19 @@
+#!/bin/bash
+export user=tzachi-dar
+export repo=nightscout-vps
+export branch=freedns-fix
+
+echo ggggit called $# $1 >/tmp/git_log
+echo "${@:1}"
+
+if [[ $1 == "clone" ]]
+then
+    /usr/bin/git clone "https://github.com/$user/$repo.git" nightscout-vps
+    exit 0
+fi
+if [[ $1 == checkout ]]
+then
+    /usr/bin/git checkout $branch
+    exit 0
+fi
+/usr/bin/git "${@:1}"
