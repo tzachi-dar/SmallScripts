@@ -1,18 +1,20 @@
 #!/bin/bash
 export user=tzachi-dar
 export repo=nightscout-vps
-export branch=fix-freedns2
+export branch=variables-3
 
 echo ggggit called $# $1 >/tmp/git_log
 echo "${@:1}"
 
 if [[ $1 == "clone" ]]
 then
+    echo warning, git is using directory  "https://github.com/$user/$repo.git"
     /usr/bin/git clone "https://github.com/$user/$repo.git" nightscout-vps
     exit 0
 fi
 if [[ $1 == checkout ]]
 then
+    echo warning, git is using branch $branch
     /usr/bin/git checkout $branch
     exit 0
 fi
